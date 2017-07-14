@@ -40,3 +40,8 @@
 ###  Okio (required by Retrofit)  ###
 -dontwarn okio.**
 
+
+###  Joda-Time  ###
+# the following might be needed
+#-dontwarn org.joda.convert.**
+
