@@ -32,9 +32,17 @@ dependencies {
     implementation "com.android.support:design:$support_lib_version"
     implementation "com.android.support.constraint:constraint-layout:1.0.2"
 
-    // libs
+    // Retrofit
     implementation 'com.squareup.retrofit2:retrofit:2.3.0'
+
+    // Joda-Time
     implementation 'joda-time:joda-time:2.9.9'
+
+    // RxJava 2
+    implementation "io.reactivex.rxjava2:rxjava:$rxjava2_version"
+    implementation "io.reactivex.rxjava2:rxkotlin:$rxjava2_rxkotlin_version"
+
+
 
     // testing
     testImplementation 'junit:junit:4.12'
