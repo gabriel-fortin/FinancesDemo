@@ -28,7 +28,9 @@ class DataManagerImpl(observableLoginNetworkCall: Single<String>) : DataManager 
         private val tokenStream: BehaviorSubject<TokenState> = BehaviorSubject.create()
 
         /** State is always active and caches last value */
-        val state: Observable<TokenState> = tokenStream.replay(1).autoConnect()
+        val state: Observable<TokenState> = tokenStream
+                .startWith(TokenState.NoToken("no token at start"))
+                .replay(1).autoConnect()
 
         /** Acquires or re-acquires token */
         fun reset() {
