@@ -55,19 +55,14 @@ class DataManagerImpl(observableLoginNetworkCall: Single<String>) : DataManager 
 
         /** Removes token (e.g. for logout) */
         fun remove() {
-            var quickReturn = false
             synchronized(lock) {
                 // prevent running "remove()" in parallel
-                if (doingRemoveRightNow) {
-                    quickReturn = true
-                    return@synchronized
-                }
+                if (doingRemoveRightNow) return
                 doingRemoveRightNow = true
 
                 // prevent a new concurrent "reset()" from starting
                 doingResetRightNow = true
             }
-            if (quickReturn) return
 
             // if network request is on-going then cancel it
             networkRequest?.dispose()  // this triggers the ".doFinally" operator
