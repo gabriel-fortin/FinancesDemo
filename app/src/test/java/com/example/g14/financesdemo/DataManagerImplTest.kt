@@ -1,8 +1,8 @@
 package com.example.g14.financesdemo
 
-import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.schedulers.TestScheduler
+import org.hamcrest.Matchers.*
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -54,14 +54,13 @@ class DataManagerImplTest {
         // EXECUTE
         val testObserver = dm.logIn().test()
 
-
-
         // VERIFY
         testObserver.assertNoValues()
         scheduler.advanceTimeBy(150, TimeUnit.MILLISECONDS)
         testObserver.assertNoValues()
         scheduler.advanceTimeBy(100, TimeUnit.MILLISECONDS)
-        testObserver.assertError(networkError)
+
+        assertThat(testObserver.errorCount(), `is`(1))
     }
 
     @Test
@@ -78,12 +77,11 @@ class DataManagerImplTest {
         token.reset()
         token.reset()
 
-
         // VERIFY
         scheduler.advanceTimeBy(1000, TimeUnit.MILLISECONDS)
         testObserver.assertValues(
-                DataManagerImpl.TokenState.NoToken("no token at start"),
-                DataManagerImpl.TokenState.NoToken("re-acquiring token"),
+                DataManagerImpl.TokenState.NoToken,
+                DataManagerImpl.TokenState.NoToken,
                 DataManagerImpl.TokenState.Present("some token")
         )
     }

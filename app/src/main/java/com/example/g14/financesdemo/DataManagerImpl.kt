@@ -6,6 +6,7 @@ import com.example.g14.financesdemo.model.Transaction
 import io.reactivex.*
 import io.reactivex.disposables.Disposable
 import io.reactivex.subjects.BehaviorSubject
+import io.reactivex.subjects.CompletableSubject
 import java.util.concurrent.TimeUnit
 
 /**
@@ -16,7 +17,9 @@ class DataManagerImpl(observableLoginNetworkCall: Single<String>) : DataManager 
 
     sealed class TokenState {
         data class Present(val token: String) : TokenState()
-        data class NoToken(val reason: String?) : TokenState()
+        data class Error(val reason: String) : TokenState()
+        object NoToken : TokenState()
+            { override fun toString() = "NoToken" }
     }
 
     class Token(val observableLoginNetworkCall: Single<String>) {
@@ -29,7 +32,7 @@ class DataManagerImpl(observableLoginNetworkCall: Single<String>) : DataManager 
 
         /** State is always active and caches last value */
         val state: Observable<TokenState> = tokenStream
-                .startWith(TokenState.NoToken("no token at start"))
+                .startWith(TokenState.NoToken)
                 .replay(1).autoConnect()
 
         /** Acquires or re-acquires token */
@@ -39,7 +42,7 @@ class DataManagerImpl(observableLoginNetworkCall: Single<String>) : DataManager 
                 doingResetRightNow = true
             }
 
-            tokenStream.onNext(TokenState.NoToken("re-acquiring token"))
+            tokenStream.onNext(TokenState.NoToken)
             networkRequest = callForToken()
                     .doFinally {
                         networkRequest = null
@@ -49,7 +52,11 @@ class DataManagerImpl(observableLoginNetworkCall: Single<String>) : DataManager 
                     }
                     .subscribe(
                             { token -> tokenStream.onNext(TokenState.Present(token)) },
-                            { error -> tokenStream.onNext(TokenState.NoToken(error.message)) }
+                            { error ->
+                                tokenStream.onNext(TokenState.Error(
+                                        error.message ?: "network error"))
+                                tokenStream.onNext(TokenState.NoToken)
+                            }
                     )
         }
 
@@ -67,7 +74,7 @@ class DataManagerImpl(observableLoginNetworkCall: Single<String>) : DataManager 
             // if network request is on-going then cancel it
             networkRequest?.dispose()  // this triggers the ".doFinally" operator
 
-            tokenStream.onNext(TokenState.NoToken("token removal was requested"))
+            tokenStream.onNext(TokenState.NoToken)
 
             synchronized(lock) {
                 doingRemoveRightNow = false
@@ -88,16 +95,36 @@ class DataManagerImpl(observableLoginNetworkCall: Single<String>) : DataManager 
     }
 
     override fun logIn(): Completable {
-        return token.state
-                .map { when(it) {
-                    is TokenState.Present -> Completable.complete()
-                    is TokenState.NoToken -> Completable.error(Exception(it.reason))
-                } }
-                // TODO: add back-off when it's fully implemented and tested
+        val result: CompletableSubject = CompletableSubject.create()
+
+        val tokenStateDisposable = token.state
+                .flatMapCompletable {
+                    when (it) {
+                        is TokenState.Present -> {
+                            result.onComplete()
+                            Completable.complete()
+                        }
+                        is TokenState.NoToken -> {
+                            token.reset()
+                            Completable.complete()
+                        }
+                        is TokenState.Error -> {
+                            result.onError(Exception(it.reason))
+                            // returning error will trigger the back-off mechanism
+                            Completable.error(Exception(it.reason))
+                        }
+                    }
+                }
+                // TODO: add exponential back-off to login (see "ExponentialBackOff" class)
+                //       but first, write tests for the back-off feature
 //                .compose(ExponentialBackOff())
-                .flatMapCompletable { it }
+                .subscribe({}, {})
+
+        result.doOnDispose { tokenStateDisposable.dispose() }
+        return result
     }
 
+    // TODO: finish back-off implementation and use in "logIn()"
     inner class ExponentialBackOff : CompletableTransformer {
         val RETRY_COUNT = 3  // must be at least '1' for ".scan" to work properly
 
