@@ -6,7 +6,6 @@ import com.example.g14.financesdemo.model.Transaction
 import io.reactivex.*
 import io.reactivex.disposables.Disposable
 import io.reactivex.subjects.BehaviorSubject
-import io.reactivex.subjects.CompletableSubject
 import java.util.concurrent.TimeUnit
 
 /**
@@ -95,34 +94,37 @@ class DataManagerImpl(observableLoginNetworkCall: Single<String>) : DataManager 
         return Completable.complete()
     }
 
+    /** Returns a completable which will perform log-in upon subscription */
     override fun logIn(): Completable {
-        val result: CompletableSubject = CompletableSubject.create()
-
-        val tokenStateDisposable = token.state
+        return token.state
+                // if NoToken then request for one and "wait"
+                // otherwise proceed
+                .filter {
+                    when (it) {
+                        is TokenState.NoToken -> { token.reset(); false }
+                        else -> true
+                    }
+                }
+                .take(1)
+                // map: token => complete, error => error
                 .flatMapCompletable {
                     when (it) {
                         is TokenState.Present -> {
-                            result.onComplete()
-                            Completable.complete()
-                        }
-                        is TokenState.NoToken -> {
-                            token.reset()
                             Completable.complete()
                         }
                         is TokenState.Error -> {
-                            result.onError(Exception(it.reason))
                             // returning error will trigger the back-off mechanism
-                            Completable.error(Exception(it.reason))
+                            Completable.error(Exception("$ENDPOINT_LOGIN: $it.reason"))
+                        }
+                        is TokenState.NoToken -> {
+                            // this case is filtered out by the '.filter' operator
+                            Completable.error(IllegalArgumentException("SHOULD NOT HAPPEN"))
                         }
                     }
                 }
                 // TODO: add exponential back-off to login (see "ExponentialBackOff" class)
                 //       but first, write tests for the back-off feature
 //                .compose(ExponentialBackOff())
-                .subscribe({}, {})
-
-        result.doOnDispose { tokenStateDisposable.dispose() }
-        return result
     }
 
     // TODO: finish back-off implementation and use in "logIn()"
