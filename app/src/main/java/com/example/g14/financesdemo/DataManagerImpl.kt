@@ -88,6 +88,9 @@ class DataManagerImpl(observableLoginNetworkCall: Single<String>) : DataManager 
 
 
     private val token = Token(observableLoginNetworkCall)
+    private val events = BehaviorSubject.create<DataManagerEvent>()
+
+    override fun observe(): Observable<DataManagerEvent> = events
 
     override fun logOut(): Completable {
         token.remove()
@@ -97,6 +100,9 @@ class DataManagerImpl(observableLoginNetworkCall: Single<String>) : DataManager 
     /** Returns a completable which will perform log-in upon subscription */
     override fun logIn(): Completable {
         return token.state
+                .doOnSubscribe {
+                    events.onNext(DataManagerEvent.Requesting(ENDPOINT_LOGIN))
+                }
                 // if NoToken then request for one and "wait"
                 // otherwise proceed
                 .filter {
@@ -110,9 +116,13 @@ class DataManagerImpl(observableLoginNetworkCall: Single<String>) : DataManager 
                 .flatMapCompletable {
                     when (it) {
                         is TokenState.Present -> {
+                            events.onNext(DataManagerEvent.RequestSuccess(ENDPOINT_LOGIN))
                             Completable.complete()
                         }
                         is TokenState.Error -> {
+                            // TODO: become more precise about the problem
+                            events.onNext(DataManagerEvent.UnknownProblem(it.reason))
+
                             // returning error will trigger the back-off mechanism
                             Completable.error(Exception("$ENDPOINT_LOGIN: $it.reason"))
                         }
