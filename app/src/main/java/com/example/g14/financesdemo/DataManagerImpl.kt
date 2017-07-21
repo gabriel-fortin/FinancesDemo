@@ -33,6 +33,7 @@ class DataManagerImpl(observableLoginNetworkCall: Single<String>) : DataManager 
         /** State is always active and caches last value */
         val state: Observable<TokenState> = tokenStream
                 .startWith(TokenState.NoToken)
+                .distinctUntilChanged()
                 .replay(1).autoConnect()
 
         /** Acquires or re-acquires token */

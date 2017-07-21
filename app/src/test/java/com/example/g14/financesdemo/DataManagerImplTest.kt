@@ -81,7 +81,6 @@ class DataManagerImplTest {
         scheduler.advanceTimeBy(1000, TimeUnit.MILLISECONDS)
         testObserver.assertValues(
                 DataManagerImpl.TokenState.NoToken,
-                DataManagerImpl.TokenState.NoToken,
                 DataManagerImpl.TokenState.Present("some token")
         )
     }
