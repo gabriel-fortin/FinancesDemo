@@ -21,6 +21,7 @@ class MainActivity : AppCompatActivity() {
 
 //        performRetrofitLogin()
         loginViaDataManager()
+        runOnUiThread { attachEventsToScreen() }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
