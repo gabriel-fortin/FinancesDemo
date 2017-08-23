@@ -19,7 +19,8 @@ class MainActivity : AppCompatActivity() {
                     .setAction("Action", null).show()
         }
 
-        performRetrofitLogin()
+//        performRetrofitLogin()
+        loginViaDataManager()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
